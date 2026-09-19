@@ -110,7 +110,8 @@ const backgroundMusic = document.getElementById("backgroundMusic");
 document.addEventListener("click", () => {
     backgroundMusic.play();
 }, { once: true });
-const startGame = document.getElementById("startGame");
-startGame.addEventListener("click", () => {
-    window.location.href = "game.html";
+
+const startGame=document.getElementById("startGame");
+startGame.addEventListener("click",()=>{
+    window.location.href="game.html";
 });
