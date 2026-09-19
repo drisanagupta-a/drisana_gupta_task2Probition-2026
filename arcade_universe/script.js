@@ -106,3 +106,8 @@ creditsModal.classList.add("show");
     }
 
 });
+const backgroundMusic = document.getElementById("backgroundMusic");
+
+document.addEventListener("click", () => {
+    backgroundMusic.play();
+}, { once: true });
