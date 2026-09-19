@@ -843,3 +843,47 @@ body.benny-theme .gameHeader h1 {
     }
 
 }
+.gameSection {
+    display: none;
+    width: 100%;
+    max-width: 1000px;
+    margin: 50px auto;
+}
+.gameSection.active {
+    display: block;
+    animation: gameEnter 0.6s ease;
+}
+.gameTop {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 12px;
+    font-family: 'Oxanium', sans-serif;
+    font-weight: bold;
+}
+#gameCanvas {
+    display: block;
+    width: 100%;
+    height: auto;
+    border: 4px solid #26345c;
+    background: #7bdff2;
+    image-rendering: pixelated;
+}
+#exitGame {
+    border: 2px solid #26345c;
+    background: white;
+    padding: 8px 16px;
+    cursor: pointer;
+    font-weight: bold;
+}
+
+@keyframes gameEnter {
+    from {
+        opacity: 0;
+        transform: scale(0.96);
+    }
+    to {
+        opacity: 1;
+        transform: scale(1);
+    }
+}

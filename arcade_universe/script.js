@@ -94,10 +94,10 @@ const closeCredits = document.getElementById("closeCredits");
 credits.addEventListener("click", () => {
 creditsModal.classList.add("show");
 });
-    closeCredits.addEventListener("click", () => {
-    creditsModal.classList.remove("show");
+closeCredits.addEventListener("click", () => {
+creditsModal.classList.remove("show");
 });
-    window.addEventListener("click", event => {
+window.addEventListener("click", event => {
     if (event.target === howToPlayModal) {
         howToPlayModal.classList.remove("show");
     }
@@ -107,7 +107,10 @@ creditsModal.classList.add("show");
 
 });
 const backgroundMusic = document.getElementById("backgroundMusic");
-
 document.addEventListener("click", () => {
     backgroundMusic.play();
 }, { once: true });
+const startGame = document.getElementById("startGame");
+startGame.addEventListener("click", () => {
+    window.location.href = "game.html";
+});
