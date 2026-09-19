@@ -312,35 +312,21 @@ body::after {
     text-align: center;
     position: relative;
     background:
-        linear-gradient(rgba(255,248,233,0.94),rgba(255,248,233,0.94)) padding-box,
-        linear-gradient(90deg,#54d9ff,#8b6fd8,#ff82b7,#ffd65a,#67d68a,#54d9ff) border-box;
+        linear-gradient(rgba(255,248,233,0.95),rgba(255,248,233,0.95)) padding-box,
+        linear-gradient(90deg,#54d9ff,#ffd65a,#ff6f61,#ff82b7,#8b6fd8,#54d9ff) border-box;
     background-size: 100% 100%,300% 100%;
     border: 5px solid transparent;
     border-radius: 18px;
     box-shadow: 0 8px 0 rgba(49,85,166,0.12),0 15px 30px rgba(49,85,166,0.12);
-    animation: profileBorder 4s linear infinite;
+    animation: profileBorder 3s linear infinite;
 }
-.characterInfo::before {
-    content: "";
-    position: absolute;
-    inset: -5px;
-    padding: 2px;
-    border: 2px solid transparent;
-    border-radius: 20px;
-    background:
-        linear-gradient(rgba(255,248,233,0.9),rgba(255,248,233,0.9)) padding-box,
-        conic-gradient(
-            from 0deg,
-            transparent 0deg,
-            #54d9ff 60deg,
-            #8b6fd8 130deg,
-            #ff82b7 200deg,
-            #ffd65a 270deg,
-            #67d68a 320deg,
-            transparent 350deg
-        ) border-box;
-    animation: profileBorder 4s linear infinite;
-    pointer-events: none;
+@keyframes profileBorder {
+    0% {
+        background-position: 0 0,0% 50%;
+    }
+    100% {
+        background-position: 0 0,300% 50%;
+    }
 }
 .infoLabel {
     color: #3155a6;
@@ -811,4 +797,15 @@ button:hover {
         animation-iteration-count: 1 !important;
         scroll-behavior: auto !important;
     }
+}
+.characterImage img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    image-rendering: pixelated;
+    transition: transform 0.4s ease;
+}
+
+.characterCard:hover .characterImage img {
+    transform: scale(1.08);
 }
