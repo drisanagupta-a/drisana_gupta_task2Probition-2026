@@ -5,8 +5,32 @@ const livesText=document.getElementById("lives");
 const exitGame=document.getElementById("exitGame");
 const selectedCharacter=localStorage.getItem("selectedCharacter")||"vinnie";
 const theme=selectedCharacter==="vinnie"?"jungle":"desert";
+
+document.body.style.background=theme==="jungle"?"#ffebf7":"#fff0d2";
+
+const bgMusic=new Audio("assets/audio/background.mp3");
+const energySound=new Audio("assets/audio/energy.mp3");
+const gameOverSound=new Audio("assets/audio/gameover.mp3");
+
+bgMusic.loop=true;
+bgMusic.volume=0.1;
+energySound.volume=1;
+gameOverSound.volume=1;
+
+let audioStarted=false;
+
+function startAudio(){
+    if(audioStarted)return;
+    audioStarted=true;
+    bgMusic.play().catch(()=>{});
+}
+
+document.addEventListener("click",startAudio,{once:true});
+document.addEventListener("keydown",startAudio,{once:true});
+
 const playerImage=new Image();
 playerImage.src=selectedCharacter==="benny"?"assets/images/benny.png":"assets/images/vinnie.png";
+
 const images={
     cloud1:new Image(),
     cloud2:new Image(),
@@ -20,6 +44,7 @@ const images={
     hurt:new Image(),
     cheer:new Image()
 };
+
 if(theme==="jungle"){
     images.cloud1.src="assets/images/vinnie_jungle_cloud_1.svg";
     images.cloud2.src="assets/images/vinnie_jungle_cloud_2.svg";
@@ -45,6 +70,7 @@ if(theme==="jungle"){
     images.hurt.src="assets/images/player_hurt.png";
     images.cheer.src="assets/images/player_cheer2.png";
 }
+
 const player={
     x:60,
     y:345,
@@ -54,6 +80,7 @@ const player={
     velocityY:0,
     jumping:false
 };
+
 const keys={};
 let lives=3;
 let gameOver=false;
@@ -61,6 +88,7 @@ let gameWon=false;
 let frame=0;
 let invulnerableUntil=0;
 let hurtUntil=0;
+
 const platforms=[
     {x:0,y:420,width:1000,height:80},
     {x:80,y:350,width:150,height:20},
@@ -69,10 +97,12 @@ const platforms=[
     {x:680,y:250,width:150,height:20},
     {x:800,y:110,width:170,height:20}
 ];
+
 const movingPlatforms=[
     {x:210,y:220,width:110,height:20,baseX:210,range:70,speed:.7},
     {x:600,y:155,width:110,height:20,baseY:155,range:35,speed:.6}
 ];
+
 const energies=[
     {x:95,y:325,collected:false},
     {x:345,y:265,collected:false},
@@ -81,18 +111,21 @@ const energies=[
     {x:265,y:195,collected:false},
     {x:650,y:105,collected:false}
 ];
+
 const thorns=[
     {x:195,y:315,width:35,height:35},
     {x:430,y:255,width:35,height:35},
     {x:610,y:315,width:35,height:35},
     {x:795,y:215,width:35,height:35}
 ];
+
 const portal={
     x:875,
     y:15,
     width:70,
     height:95
 };
+
 const clouds=[
     {x:40,y:35,w:120,h:65},
     {x:250,y:70,w:110,h:60},
@@ -100,8 +133,10 @@ const clouds=[
     {x:700,y:60,w:120,h:65},
     {x:850,y:25,w:100,h:55}
 ];
+
 if(energyText)energyText.textContent="0/6";
 if(livesText)livesText.textContent="3";
+
 document.addEventListener("keydown",e=>{
     keys[e.key]=true;
 
@@ -114,43 +149,57 @@ document.addEventListener("keydown",e=>{
         location.reload();
     }
 });
+
 document.addEventListener("keyup",e=>{
     keys[e.key]=false;
 });
+
 function hit(a,b){
     return a.x<b.x+b.width&&
     a.x+a.width>b.x&&
     a.y<b.y+b.height&&
     a.y+a.height>b.y;
 }
+
 function resetPlayer(){
     player.x=60;
     player.y=345;
     player.velocityY=0;
     player.jumping=false;
 }
+
 function loseLife(){
     if(Date.now()<invulnerableUntil||gameOver)return;
+
     lives--;
     invulnerableUntil=Date.now()+1000;
     hurtUntil=Date.now()+500;
+
     if(livesText)livesText.textContent=lives;
+
     if(lives<=0){
         gameOver=true;
+        gameOverSound.currentTime=0;
+        gameOverSound.play().catch(err=>console.log("Game over sound:",err));
+        bgMusic.pause();
     }else{
         resetPlayer();
     }
 }
+
 function updateMovingPlatforms(){
     movingPlatforms.forEach(p=>{
         const oldX=p.x;
         const oldY=p.y;
+
         if(p.baseX!==undefined){
             p.x=p.baseX+Math.sin(Date.now()*p.speed/1000)*p.range;
         }
+
         if(p.baseY!==undefined){
             p.y=p.baseY+Math.sin(Date.now()*p.speed/1000)*p.range;
         }
+
         const standingOn=
             player.x+player.width>oldX&&
             player.x<oldX+p.width&&
@@ -163,6 +212,7 @@ function updateMovingPlatforms(){
         }
     });
 }
+
 function updateMovingEnergies(){
     energies[4].x=movingPlatforms[0].x+movingPlatforms[0].width/2;
     energies[4].y=movingPlatforms[0].y-25;
@@ -170,6 +220,7 @@ function updateMovingEnergies(){
     energies[5].x=movingPlatforms[1].x+movingPlatforms[1].width/2;
     energies[5].y=movingPlatforms[1].y-25;
 }
+
 function checkPlatformCollision(p){
     if(
         hit(player,p)&&
@@ -181,21 +232,28 @@ function checkPlatformCollision(p){
         player.jumping=false;
     }
 }
+
 function update(){
     if(gameOver||gameWon)return;
-      updateMovingPlatforms();
-      updateMovingEnergies();
-      if(keys["ArrowLeft"])player.x-=player.speed;
-      if(keys["ArrowRight"])player.x+=player.speed;
+
+    updateMovingPlatforms();
+    updateMovingEnergies();
+
+    if(keys["ArrowLeft"])player.x-=player.speed;
+    if(keys["ArrowRight"])player.x+=player.speed;
+
     player.velocityY+=.6;
     player.y+=player.velocityY;
     player.jumping=true;
+
     platforms.forEach(checkPlatformCollision);
     movingPlatforms.forEach(checkPlatformCollision);
-     thorns.forEach(thorn=>{
+
+    thorns.forEach(thorn=>{
         if(hit(player,thorn))loseLife();
     });
-       energies.forEach(e=>{
+
+    energies.forEach(e=>{
         if(!e.collected&&hit(player,{
             x:e.x-12,
             y:e.y-12,
@@ -203,18 +261,27 @@ function update(){
             height:24
         })){
             e.collected=true;
+
+            energySound.currentTime=0;
+            energySound.play().catch(
+                err=>console.log("Energy sound:",err)
+            );
+
             const count=energies.filter(
                 item=>item.collected
             ).length;
-          if(energyText)energyText.textContent=count+"/6";
+
+            if(energyText)energyText.textContent=count+"/6";
         }
     });
+
     const allEnergy=energies.every(
         item=>item.collected
     );
 
     if(allEnergy&&hit(player,portal)){
         gameWon=true;
+        bgMusic.pause();
     }
 
     if(player.y>canvas.height+40){
@@ -226,13 +293,15 @@ function update(){
     if(player.x+player.width>canvas.width){
         player.x=canvas.width-player.width;
     }
+
     frame++;
 }
 
 function drawPlatform(p){
     ctx.fillStyle=theme==="jungle"?"#704b32":"#c98a42";
     ctx.fillRect(p.x,p.y,p.width,p.height);
-  ctx.fillStyle=theme==="jungle"?"#69a83b":"#e8ad55";
+
+    ctx.fillStyle=theme==="jungle"?"#69a83b":"#e8ad55";
     ctx.fillRect(p.x,p.y,p.width,5);
 }
 
@@ -250,13 +319,16 @@ function drawThorn(thorn){
 
 function drawEnergy(e){
     if(e.collected)return;
+
     const float=Math.sin(frame*.08)*3;
     const energyColor=theme==="desert"?"#70451f":"#ffd83d";
     const highlightColor=theme==="desert"?"#c89550":"#fff4a3";
+
     ctx.fillStyle=energyColor;
     ctx.beginPath();
     ctx.arc(e.x,e.y+float,10,0,Math.PI*2);
     ctx.fill();
+
     ctx.fillStyle=highlightColor;
     ctx.beginPath();
     ctx.arc(e.x-3,e.y-3+float,3,0,Math.PI*2);
@@ -298,6 +370,7 @@ function draw(){
             portal.height
         );
     }
+
     let currentImage=playerImage;
 
     if(gameWon&&images.cheer.naturalWidth){
@@ -319,7 +392,6 @@ function draw(){
     }
 
     if(currentImage.naturalWidth){
-
         if(Date.now()<invulnerableUntil&&frame%10<5){
             ctx.globalAlpha=.45;
         }
@@ -353,7 +425,9 @@ function draw(){
             canvas.width/2,
             220
         );
+
         ctx.font="20px Arial";
+
         ctx.fillText(
             gameWon?
             "You reached the exit portal!":
