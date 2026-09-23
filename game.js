@@ -3,33 +3,44 @@ const ctx=canvas.getContext("2d");
 const energyText=document.getElementById("energy");
 const livesText=document.getElementById("lives");
 const exitGame=document.getElementById("exitGame");
+
 const selectedCharacter=localStorage.getItem("selectedCharacter")||"vinnie";
 const theme=selectedCharacter==="vinnie"?"jungle":"desert";
-
 document.body.style.background=theme==="jungle"?"#ffebf7":"#fff0d2";
 
-const bgMusic=new Audio("assets/audio/background.mp3");
+const backgroundMusic=new Audio("assets/audio/background.mp3");
 const energySound=new Audio("assets/audio/energy.mp3");
 const gameOverSound=new Audio("assets/audio/gameover.mp3");
 
-bgMusic.loop=true;
-bgMusic.volume=0.1;
-energySound.volume=1;
-gameOverSound.volume=1;
+backgroundMusic.loop=true;
+backgroundMusic.volume=0.12;
+energySound.volume=0.7;
+gameOverSound.volume=0.7;
 
-let audioStarted=false;
+let audioUnlocked=false;
 
-function startAudio(){
-    if(audioStarted)return;
-    audioStarted=true;
-    bgMusic.play().catch(()=>{});
+function unlockAudio(){
+    if(audioUnlocked)return;
+    audioUnlocked=true;
+
+    backgroundMusic.play().catch(()=>{});
+
+    energySound.play().then(()=>{
+        energySound.pause();
+        energySound.currentTime=0;
+    }).catch(()=>{});
+
+    gameOverSound.load();
 }
 
-document.addEventListener("click",startAudio,{once:true});
-document.addEventListener("keydown",startAudio,{once:true});
+document.addEventListener("click",unlockAudio,{once:true});
+document.addEventListener("keydown",unlockAudio,{once:true});
 
 const playerImage=new Image();
-playerImage.src=selectedCharacter==="benny"?"assets/images/benny.png":"assets/images/vinnie.png";
+
+playerImage.src=selectedCharacter==="benny"
+    ?"assets/images/benny.png"
+    :"assets/images/vinnie.png";
 
 const images={
     cloud1:new Image(),
@@ -78,10 +89,13 @@ const player={
     height:75,
     speed:5,
     velocityY:0,
-    jumping:false
+    jumping:false,
+    grounded:true,
+    standingOn:null
 };
 
 const keys={};
+
 let lives=3;
 let gameOver=false;
 let gameWon=false;
@@ -91,7 +105,7 @@ let hurtUntil=0;
 
 const platforms=[
     {x:0,y:420,width:1000,height:80},
-    {x:80,y:350,width:150,height:20},
+    {x:140,y:350,width:150,height:20},
     {x:330,y:290,width:150,height:20},
     {x:520,y:350,width:130,height:20},
     {x:680,y:250,width:150,height:20},
@@ -99,8 +113,24 @@ const platforms=[
 ];
 
 const movingPlatforms=[
-    {x:210,y:220,width:110,height:20,baseX:210,range:70,speed:.7},
-    {x:600,y:155,width:110,height:20,baseY:155,range:35,speed:.6}
+    {
+        x:210,
+        y:220,
+        width:110,
+        height:20,
+        baseX:210,
+        range:70,
+        speed:.7
+    },
+    {
+        x:600,
+        y:155,
+        width:110,
+        height:20,
+        baseY:155,
+        range:35,
+        speed:.6
+    }
 ];
 
 const energies=[
@@ -113,10 +143,10 @@ const energies=[
 ];
 
 const thorns=[
-    {x:195,y:315,width:35,height:35},
-    {x:430,y:255,width:35,height:35},
-    {x:610,y:315,width:35,height:35},
-    {x:795,y:215,width:35,height:35}
+    {x:195,y:325,width:35,height:25},
+    {x:430,y:265,width:35,height:25},
+    {x:610,y:325,width:35,height:25},
+    {x:795,y:225,width:35,height:25}
 ];
 
 const portal={
@@ -134,31 +164,44 @@ const clouds=[
     {x:850,y:25,w:100,h:55}
 ];
 
-if(energyText)energyText.textContent="0/6";
-if(livesText)livesText.textContent="3";
+energyText.textContent="0/6";
+livesText.textContent="3";
 
 document.addEventListener("keydown",e=>{
-    keys[e.key]=true;
+    const k=e.key.toLowerCase();
 
-    if(e.code==="Space"&&!player.jumping&&!gameOver&&!gameWon){
-        player.velocityY=-13;
-        player.jumping=true;
+    if(k==="a"||k==="d"){
+        keys[k]=true;
+        e.preventDefault();
     }
 
-    if(e.key.toLowerCase()==="r"&&(gameOver||gameWon)){
+    if(k==="w"&&!gameOver&&!gameWon&&player.grounded){
+        player.velocityY=-13;
+        player.jumping=true;
+        player.grounded=false;
+        player.standingOn=null;
+        e.preventDefault();
+    }
+
+    if(k==="r"&&(gameOver||gameWon)){
         location.reload();
     }
 });
 
 document.addEventListener("keyup",e=>{
-    keys[e.key]=false;
+    const k=e.key.toLowerCase();
+
+    if(k==="a"||k==="d"){
+        keys[k]=false;
+        e.preventDefault();
+    }
 });
 
 function hit(a,b){
     return a.x<b.x+b.width&&
-    a.x+a.width>b.x&&
-    a.y<b.y+b.height&&
-    a.y+a.height>b.y;
+           a.x+a.width>b.x&&
+           a.y<b.y+b.height&&
+           a.y+a.height>b.y;
 }
 
 function resetPlayer(){
@@ -166,6 +209,8 @@ function resetPlayer(){
     player.y=345;
     player.velocityY=0;
     player.jumping=false;
+    player.grounded=true;
+    player.standingOn=null;
 }
 
 function loseLife(){
@@ -174,14 +219,12 @@ function loseLife(){
     lives--;
     invulnerableUntil=Date.now()+1000;
     hurtUntil=Date.now()+500;
-
-    if(livesText)livesText.textContent=lives;
+    livesText.textContent=lives;
 
     if(lives<=0){
         gameOver=true;
         gameOverSound.currentTime=0;
-        gameOverSound.play().catch(err=>console.log("Game over sound:",err));
-        bgMusic.pause();
+        gameOverSound.play().catch(()=>{});
     }else{
         resetPlayer();
     }
@@ -193,20 +236,16 @@ function updateMovingPlatforms(){
         const oldY=p.y;
 
         if(p.baseX!==undefined){
-            p.x=p.baseX+Math.sin(Date.now()*p.speed/1000)*p.range;
+            p.x=p.baseX+
+                Math.sin(Date.now()*p.speed/1000)*p.range;
         }
 
         if(p.baseY!==undefined){
-            p.y=p.baseY+Math.sin(Date.now()*p.speed/1000)*p.range;
+            p.y=p.baseY+
+                Math.sin(Date.now()*p.speed/1000)*p.range;
         }
 
-        const standingOn=
-            player.x+player.width>oldX&&
-            player.x<oldX+p.width&&
-            Math.abs(player.y+player.height-oldY)<8&&
-            player.velocityY>=0;
-
-        if(standingOn){
+        if(player.standingOn===p){
             player.x+=p.x-oldX;
             player.y+=p.y-oldY;
         }
@@ -214,24 +253,79 @@ function updateMovingPlatforms(){
 }
 
 function updateMovingEnergies(){
-    energies[4].x=movingPlatforms[0].x+movingPlatforms[0].width/2;
+    energies[4].x=movingPlatforms[0].x+55;
     energies[4].y=movingPlatforms[0].y-25;
 
-    energies[5].x=movingPlatforms[1].x+movingPlatforms[1].width/2;
+    energies[5].x=movingPlatforms[1].x+55;
     energies[5].y=movingPlatforms[1].y-25;
 }
+   function checkStaticPlatformCollision(p,oldY,oldX){
+    const oldBottom=oldY+player.height;
+    const bottom=player.y+player.height;
 
-function checkPlatformCollision(p){
-    if(
-        hit(player,p)&&
+    const touching=
+        player.x+player.width>p.x&&
+        player.x<p.x+p.width;
+
+    const landing=
         player.velocityY>=0&&
-        player.y+player.height-player.velocityY<=p.y+8
+        oldBottom<=p.y&&
+        bottom>=p.y;
+
+    const ground=p===platforms[0];
+
+    const leftEntry=
+        oldX<p.x+30;
+
+    const alreadyOn=
+        player.standingOn===p;
+
+    if(
+        ground&&
+        touching&&
+        landing
     ){
         player.y=p.y-player.height;
         player.velocityY=0;
         player.jumping=false;
+        player.grounded=true;
+        player.standingOn=p;
+    }
+    else if(
+        !ground&&
+        touching&&
+        landing&&
+        (leftEntry||alreadyOn)
+    ){
+        player.y=p.y-player.height;
+        player.velocityY=0;
+        player.jumping=false;
+        player.grounded=true;
+        player.standingOn=p;
+    }
+} 
+function checkMovingPlatformCollision(p,oldY){
+    const oldBottom=oldY+player.height;
+    const bottom=player.y+player.height;
+
+    const touching=
+        player.x+player.width>p.x&&
+        player.x<p.x+p.width;
+
+    const landing=
+        player.velocityY>=0&&
+        oldBottom<=p.y&&
+        bottom>=p.y;
+
+    if(touching&&landing){
+        player.y=p.y-player.height;
+        player.velocityY=0;
+        player.jumping=false;
+        player.grounded=true;
+        player.standingOn=p;
     }
 }
+
 
 function update(){
     if(gameOver||gameWon)return;
@@ -239,56 +333,91 @@ function update(){
     updateMovingPlatforms();
     updateMovingEnergies();
 
-    if(keys["ArrowLeft"])player.x-=player.speed;
-    if(keys["ArrowRight"])player.x+=player.speed;
+    if(keys.a)player.x-=player.speed;
+    if(keys.d)player.x+=player.speed;
 
-    player.velocityY+=.6;
+    if(player.standingOn){
+        const p=player.standingOn;
+
+        const on=
+            player.x+player.width>p.x&&
+            player.x<p.x+p.width;
+
+        if(!on){
+            player.standingOn=null;
+            player.grounded=false;
+        }
+    }
+
+    const oldY=player.y;
+    const oldX=player.x;
+
+    player.grounded=false;
+
+    player.velocityY+=0.6;
     player.y+=player.velocityY;
-    player.jumping=true;
 
-    platforms.forEach(checkPlatformCollision);
-    movingPlatforms.forEach(checkPlatformCollision);
-
-    thorns.forEach(thorn=>{
-        if(hit(player,thorn))loseLife();
+    platforms.forEach(p=>{
+        checkStaticPlatformCollision(p,oldY,oldX);
     });
 
-    energies.forEach(e=>{
-        if(!e.collected&&hit(player,{
-            x:e.x-12,
-            y:e.y-12,
-            width:24,
-            height:24
-        })){
-            e.collected=true;
+    movingPlatforms.forEach(p=>{
+        checkMovingPlatformCollision(p,oldY);
+    });
 
-            energySound.currentTime=0;
-            energySound.play().catch(
-                err=>console.log("Energy sound:",err)
-            );
+    thorns.forEach(t=>{
+        const bottom=player.y+player.height;
 
-            const count=energies.filter(
-                item=>item.collected
-            ).length;
+        const touchX=
+            player.x+player.width>t.x&&
+            player.x<t.x+t.width;
 
-            if(energyText)energyText.textContent=count+"/6";
+        const touchY=
+            bottom>=t.y&&
+            bottom<=t.y+t.height+5;
+
+        if(touchX&&touchY){
+            loseLife();
         }
     });
 
-    const allEnergy=energies.every(
-        item=>item.collected
-    );
+    energies.forEach((e,i)=>{
+        const near=hit(player,{
+            x:e.x-7,
+            y:e.y-7,
+            width:14,
+            height:14
+        });
 
-    if(allEnergy&&hit(player,portal)){
+        const correctPlatform=
+            i!==5||player.standingOn===movingPlatforms[1];
+
+        if(!e.collected&&near&&correctPlatform){
+            e.collected=true;
+
+            const sound=energySound.cloneNode();
+            sound.volume=.7;
+            sound.play().catch(()=>{});
+
+            energyText.textContent=
+                energies.filter(x=>x.collected).length+"/6";
+        }
+    });
+
+    if(
+        energies.every(e=>e.collected)&&
+        hit(player,portal)
+    ){
         gameWon=true;
-        bgMusic.pause();
     }
 
     if(player.y>canvas.height+40){
         loseLife();
     }
 
-    if(player.x<0)player.x=0;
+    if(player.x<0){
+        player.x=0;
+    }
 
     if(player.x+player.width>canvas.width){
         player.x=canvas.width-player.width;
@@ -298,21 +427,35 @@ function update(){
 }
 
 function drawPlatform(p){
-    ctx.fillStyle=theme==="jungle"?"#704b32":"#c98a42";
-    ctx.fillRect(p.x,p.y,p.width,p.height);
+    ctx.fillStyle=
+        theme==="jungle"?"#704b32":"#c98a42";
 
-    ctx.fillStyle=theme==="jungle"?"#69a83b":"#e8ad55";
-    ctx.fillRect(p.x,p.y,p.width,5);
+    ctx.fillRect(
+        p.x,
+        p.y,
+        p.width,
+        p.height
+    );
+
+    ctx.fillStyle=
+        theme==="jungle"?"#69a83b":"#e8ad55";
+
+    ctx.fillRect(
+        p.x,
+        p.y,
+        p.width,
+        5
+    );
 }
 
-function drawThorn(thorn){
+function drawThorn(t){
     if(images.obstacle.naturalWidth){
         ctx.drawImage(
             images.obstacle,
-            thorn.x,
-            thorn.y,
-            thorn.width,
-            thorn.height
+            t.x,
+            t.y,
+            t.width,
+            t.height
         );
     }
 }
@@ -320,44 +463,75 @@ function drawThorn(thorn){
 function drawEnergy(e){
     if(e.collected)return;
 
-    const float=Math.sin(frame*.08)*3;
-    const energyColor=theme==="desert"?"#70451f":"#ffd83d";
-    const highlightColor=theme==="desert"?"#c89550":"#fff4a3";
+    const f=Math.sin(frame*.08)*3;
 
-    ctx.fillStyle=energyColor;
+    ctx.fillStyle=
+        theme==="desert"?"#70451f":"#ffd83d";
+
     ctx.beginPath();
-    ctx.arc(e.x,e.y+float,10,0,Math.PI*2);
+
+    ctx.arc(
+        e.x,
+        e.y+f,
+        10,
+        0,
+        Math.PI*2
+    );
+
     ctx.fill();
 
-    ctx.fillStyle=highlightColor;
+    ctx.fillStyle=
+        theme==="desert"?"#c89550":"#fff4a3";
+
     ctx.beginPath();
-    ctx.arc(e.x-3,e.y-3+float,3,0,Math.PI*2);
+
+    ctx.arc(
+        e.x-3,
+        e.y-3+f,
+        3,
+        0,
+        Math.PI*2
+    );
+
     ctx.fill();
 }
 
 function draw(){
-    ctx.clearRect(0,0,canvas.width,canvas.height);
+    ctx.clearRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
 
-    ctx.fillStyle=theme==="jungle"?"#bfe5d0":"#f5d39a";
-    ctx.fillRect(0,0,canvas.width,canvas.height);
+    ctx.fillStyle=
+        theme==="jungle"?"#bfe5d0":"#f5d39a";
 
-    clouds.forEach((cloud,i)=>{
-        const img=i%2===0?images.cloud1:images.cloud2;
+    ctx.fillRect(
+        0,
+        0,
+        canvas.width,
+        canvas.height
+    );
+
+    clouds.forEach((c,i)=>{
+        const img=i%2?
+            images.cloud2:
+            images.cloud1;
 
         if(img.naturalWidth){
             ctx.drawImage(
                 img,
-                cloud.x,
-                cloud.y,
-                cloud.w,
-                cloud.h
+                c.x,
+                c.y,
+                c.w,
+                c.h
             );
         }
     });
 
     platforms.forEach(drawPlatform);
     movingPlatforms.forEach(drawPlatform);
-
     thorns.forEach(drawThorn);
     energies.forEach(drawEnergy);
 
@@ -371,33 +545,41 @@ function draw(){
         );
     }
 
-    let currentImage=playerImage;
+    let img=playerImage;
 
     if(gameWon&&images.cheer.naturalWidth){
-        currentImage=images.cheer;
-    }else if(Date.now()<hurtUntil&&images.hurt.naturalWidth){
-        currentImage=images.hurt;
-    }else if(player.jumping&&images.jump.naturalWidth){
-        currentImage=images.jump;
+        img=images.cheer;
     }else if(
-        (keys["ArrowLeft"]||keys["ArrowRight"])&&
+        Date.now()<hurtUntil&&
+        images.hurt.naturalWidth
+    ){
+        img=images.hurt;
+    }else if(
+        player.jumping&&
+        images.jump.naturalWidth
+    ){
+        img=images.jump;
+    }else if(
+        (keys.a||keys.d)&&
         images.action1.naturalWidth
     ){
-        currentImage=
-            frame%20<10?
+        img=frame%20<10?
             images.action1:
             images.action2;
     }else if(images.idle.naturalWidth){
-        currentImage=images.idle;
+        img=images.idle;
     }
 
-    if(currentImage.naturalWidth){
-        if(Date.now()<invulnerableUntil&&frame%10<5){
+    if(img.naturalWidth){
+        if(
+            Date.now()<invulnerableUntil&&
+            frame%10<5
+        ){
             ctx.globalAlpha=.45;
         }
 
         ctx.drawImage(
-            currentImage,
+            img,
             player.x,
             player.y,
             player.width,
@@ -409,6 +591,7 @@ function draw(){
 
     if(gameOver||gameWon){
         ctx.fillStyle="rgba(0,0,0,.65)";
+
         ctx.fillRect(
             0,
             0,
@@ -421,7 +604,9 @@ function draw(){
         ctx.font="bold 38px Arial";
 
         ctx.fillText(
-            gameWon?"LEVEL COMPLETE!":"GAME OVER",
+            gameWon?
+            "LEVEL COMPLETE!":
+            "GAME OVER",
             canvas.width/2,
             220
         );
